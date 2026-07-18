@@ -40,7 +40,7 @@ app.use(helmet({
 }));
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o.trim()))) {
+    if (ALLOWED_ORIGINS.includes('*') || !origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o.trim()))) {
       callback(null, true);
     } else {
       callback(new Error(`CORS blocked: ${origin}`));
