@@ -20,7 +20,7 @@ const staffRoutes = require('./routes/staffRoutes');
 const supplierRoutes = require('./routes/supplierRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',');
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,https://vypar-ai.vercel.app').split(',');
 
 const app = express();
 const server = http.createServer(app);
@@ -40,7 +40,13 @@ app.use(helmet({
 }));
 app.use(cors({
   origin: (origin, callback) => {
-    if (ALLOWED_ORIGINS.includes('*') || !origin || ALLOWED_ORIGINS.some(o => origin.startsWith(o.trim()))) {
+    if (
+      ALLOWED_ORIGINS.includes('*') || 
+      !origin || 
+      ALLOWED_ORIGINS.some(o => origin.startsWith(o.trim())) ||
+      origin.endsWith('.vercel.app') ||
+      origin.includes('vercel.app')
+    ) {
       callback(null, true);
     } else {
       callback(new Error(`CORS blocked: ${origin}`));
