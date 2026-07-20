@@ -267,45 +267,47 @@ export const vyaparApi = {
         }
       };
     }
-    const res = await api.get('/ai/health');
+    const res = await api.get('/ai/health', { timeout: 55000 });
     return res.data;
   },
 
   getGrowthInsights: async () => {
-    const res = await api.get('/ai/insights');
+    const res = await api.get('/ai/insights', { timeout: 55000 });
     return res.data;
   },
 
   getPurchasePlan: async (budget: number) => {
-    const res = await api.post('/ai/purchase-plan', { budget });
+    const res = await api.post('/ai/purchase-plan', { budget }, { timeout: 55000 });
     return res.data;
   },
 
   getVoiceCallSummary: async () => {
-    const res = await api.get('/ai/voice-summary');
+    const res = await api.get('/ai/voice-summary', { timeout: 55000 });
     return res.data;
   },
 
   askBrain: async (query: string, budget: number = 50000) => {
-    const res = await api.post('/ai/brain', { query, budget });
+    const res = await api.post('/ai/brain', { query, budget }, { timeout: 55000 });
     return res.data;
   },
 
   chat: async (message: string) => {
-    const res = await api.post('/ai/chat', { message });
+    const res = await api.post('/ai/chat', { message }, { timeout: 55000 });
     return res.data;
   },
 
   shelfScan: async (formData: FormData) => {
     const res = await api.post('/ai/shelf-scan', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 55000
     });
     return res.data;
   },
 
   ocrInvoice: async (formData: FormData) => {
     const res = await api.post('/ai/ocr-invoice', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 55000
     });
     return res.data;
   },
