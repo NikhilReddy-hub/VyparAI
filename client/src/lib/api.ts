@@ -6,6 +6,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL: API_URL,
+  timeout: 12000, // 12s — allows Render cold-start (~10s) then falls back gracefully
 });
 
 api.interceptors.request.use((config) => {
