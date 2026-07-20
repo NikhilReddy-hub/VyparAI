@@ -94,8 +94,13 @@ export default function AIChatModal({ isOpen, onClose }: AIChatModalProps) {
         const res = await vyaparApi.chat(text);
         setMessages((prev) => [...prev, { role: 'assistant', content: res.message }]);
       }
-    } catch (err) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: "Sorry, I am having trouble connecting to my AI engines. Make sure your Gemini API key is configured correctly in server env." }]);
+    } catch (err: any) {
+      console.error("AI error:", err);
+      const isTimeout = err?.code === 'ECONNABORTED' || err?.message?.includes('timeout');
+      const msg = isTimeout 
+        ? "The server took a moment to respond. Please try asking again now that it's warm!" 
+        : "Sorry, I am having trouble connecting to my AI engines. Please check your internet connection and try again.";
+      setMessages((prev) => [...prev, { role: 'assistant', content: msg }]);
     } finally {
       setLoading(false);
     }
