@@ -83,6 +83,11 @@ app.get('/', (req, res) => {
   res.json({ name: 'VyaparAI API', status: 'Online', version: '1.0.0' });
 });
 
+// Health check — used by frontend pre-warm ping to detect cold start completion
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Socket Connection handling
 io.on('connection', (socket) => {
   console.log('⚡ Client connected:', socket.id);
