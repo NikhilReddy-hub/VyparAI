@@ -21,26 +21,41 @@ export default function RegisterPage() {
   const [loadingMsg, setLoadingMsg] = useState('');
   const [serverStatus, setServerStatus] = useState<ServerStatus>('checking');
 
-  // Pre-warm the Render backend on page load — same as login page
+  // Pre-warm: ping Render until it wakes up — retry every 15s
   useEffect(() => {
     let cancelled = false;
-    const wakeServer = async () => {
-      setServerStatus('checking');
+    let retryTimer: ReturnType<typeof setTimeout>;
+
+    const ping = async () => {
+      if (cancelled) return;
+      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      // Strip /api suffix to get base URL
+      const BASE = API.replace(/\/api$/, '');
       try {
-        const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        // Try /api/health first, fall back to root /
         const ctrl = new AbortController();
-        const slowTimer = setTimeout(() => { if (!cancelled) setServerStatus('waking'); }, 3000);
-        const killTimer = setTimeout(() => ctrl.abort(), 60000);
-        const res = await fetch(`${API}/health`, { signal: ctrl.signal });
-        clearTimeout(slowTimer);
+        const killTimer = setTimeout(() => ctrl.abort(), 15000); // 15s per attempt
+        const res = await fetch(`${BASE}/api/health`, { signal: ctrl.signal }).catch(() =>
+          fetch(BASE, { signal: ctrl.signal })
+        );
         clearTimeout(killTimer);
-        if (!cancelled && res.ok) setServerStatus('online');
+        if (!cancelled && res.ok) {
+          setServerStatus('online');
+          return; // success — stop retrying
+        }
       } catch {
-        if (!cancelled) setServerStatus('offline');
+        // still sleeping — retry
+      }
+      if (!cancelled) {
+        setServerStatus('waking');
+        retryTimer = setTimeout(ping, 8000); // retry in 8s
       }
     };
-    wakeServer();
-    return () => { cancelled = true; };
+
+    setServerStatus('checking');
+    setTimeout(() => { if (!cancelled) setServerStatus('waking'); }, 3000);
+    ping();
+    return () => { cancelled = true; clearTimeout(retryTimer); };
   }, []);
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -61,15 +76,11 @@ export default function RegisterPage() {
       return;
     }
 
-    // If server is still waking, warn the user to wait
-    if (serverStatus === 'checking' || serverStatus === 'waking') {
-      toast('Server is still waking up — please wait a moment and try again.', { icon: '⏳', duration: 4000 });
-      return;
-    }
-
     setLoading(true);
-    setLoadingMsg('Creating your account...');
-    const wakeupTimer = setTimeout(() => setLoadingMsg('Registering on server...'), 4000);
+    // Show helpful messages during Render cold start wait
+    setLoadingMsg('Connecting to server...');
+    const msgTimer1 = setTimeout(() => setLoadingMsg('Server waking up — this can take ~30s on free tier...'), 5000);
+    const msgTimer2 = setTimeout(() => setLoadingMsg('Almost there — still waiting for server...'), 20000);
 
     try {
       const res = await vyaparApi.register({
@@ -79,7 +90,7 @@ export default function RegisterPage() {
         phone: form.phone,
         role: form.role,
       });
-      clearTimeout(wakeupTimer);
+      clearTimeout(msgTimer1); clearTimeout(msgTimer2);
 
       if (res.success) {
         setAuth(res.token, res.user);
@@ -89,12 +100,11 @@ export default function RegisterPage() {
         toast.error(res.message || 'Registration failed.');
       }
     } catch (err: any) {
-      clearTimeout(wakeupTimer);
+      clearTimeout(msgTimer1); clearTimeout(msgTimer2);
       if (err?.response?.status === 400) {
         toast.error(err.response.data?.message || 'Email already registered.');
       } else if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
-        toast.error('Server took too long. Wait for the green dot and try again.');
-        setServerStatus('waking');
+        toast.error('Server is still starting up. Click again to retry.');
       } else {
         toast.error('Could not reach server. Please try again.');
         console.error('Register error:', err.message);

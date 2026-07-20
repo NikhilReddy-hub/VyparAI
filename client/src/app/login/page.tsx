@@ -20,27 +20,37 @@ export default function LoginPage() {
   const [loadingMsg, setLoadingMsg] = useState('');
   const [serverStatus, setServerStatus] = useState<ServerStatus>('checking');
 
-  // Pre-warm the Render backend on page load
+  // Pre-warm: ping Render until it wakes up — retry every 8s
   useEffect(() => {
     let cancelled = false;
-    const wakeServer = async () => {
-      setServerStatus('checking');
+    let retryTimer: ReturnType<typeof setTimeout>;
+
+    const ping = async () => {
+      if (cancelled) return;
+      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+      const BASE = API.replace(/\/api$/, '');
       try {
-        const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
         const ctrl = new AbortController();
-        const timer = setTimeout(() => { setServerStatus('waking'); }, 3000);
-        // Render can take up to 50s to wake — we wait up to 60s
-        const timeoutId = setTimeout(() => ctrl.abort(), 60000);
-        const res = await fetch(`${API}/health`, { signal: ctrl.signal });
-        clearTimeout(timer);
-        clearTimeout(timeoutId);
-        if (!cancelled && res.ok) setServerStatus('online');
-      } catch {
-        if (!cancelled) setServerStatus('offline');
+        const killTimer = setTimeout(() => ctrl.abort(), 15000);
+        const res = await fetch(`${BASE}/api/health`, { signal: ctrl.signal }).catch(() =>
+          fetch(BASE, { signal: ctrl.signal })
+        );
+        clearTimeout(killTimer);
+        if (!cancelled && res.ok) {
+          setServerStatus('online');
+          return;
+        }
+      } catch { /* still sleeping */ }
+      if (!cancelled) {
+        setServerStatus('waking');
+        retryTimer = setTimeout(ping, 8000);
       }
     };
-    wakeServer();
-    return () => { cancelled = true; };
+
+    setServerStatus('checking');
+    setTimeout(() => { if (!cancelled) setServerStatus('waking'); }, 3000);
+    ping();
+    return () => { cancelled = true; clearTimeout(retryTimer); };
   }, []);
 
   const prefill = (role: 'owner' | 'manager' | 'staff') => {
