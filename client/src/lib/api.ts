@@ -233,7 +233,7 @@ export const vyaparApi = {
         }
       };
     }
-    const res = await api.get(`/customers/${id}/ai-score`);
+    const res = await api.get(`/customers/${id}/ai-score`, { timeout: 55000 });
     return res.data;
   },
 
@@ -379,7 +379,7 @@ export const vyaparApi = {
   },
 
   negotiateSupplier: async (id: string, body: any) => {
-    const res = await api.post(`/suppliers/${id}/negotiate`, body);
+    const res = await api.post(`/suppliers/${id}/negotiate`, body, { timeout: 55000 });
     return res.data;
   },
 

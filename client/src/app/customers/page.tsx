@@ -46,7 +46,7 @@ export default function CustomersPage() {
         toast.success('AI credit & churn prediction finished!');
       }
     } catch {
-      toast.error('AI models are currently initializing.');
+      toast.error('Could not run prediction. Please try again in a few seconds.');
     } finally {
       setCalculating(null);
     }
