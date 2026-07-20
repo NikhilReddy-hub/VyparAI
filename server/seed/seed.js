@@ -434,12 +434,18 @@ const seed = async () => {
     });
 
     console.log('❤️ Business Health Score Seeded');
-    console.log('✨ Seeding Completed Successfully! Exiting...');
-    process.exit(0);
+    console.log('✨ Seeding Completed Successfully!');
+    // Only disconnect/exit when run as a standalone script
+    if (require.main === module) process.exit(0);
   } catch (err) {
     console.error('❌ Seeding Error:', err.stack);
-    process.exit(1);
+    if (require.main === module) process.exit(1);
+    else throw err;
   }
 };
 
-seed();
+// Export for use as a module (API trigger)
+module.exports = seed;
+
+// Run directly when called as a script
+if (require.main === module) seed();
