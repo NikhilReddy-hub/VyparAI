@@ -1,28 +1,47 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useVyaparStore } from '@/lib/store';
 import { vyaparApi } from '@/lib/api';
-import { ShieldCheck, UserCheck, KeyRound, Phone, Building2, Sparkles, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, UserCheck, KeyRound, Phone, Sparkles, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+
+type ServerStatus = 'checking' | 'online' | 'offline' | 'waking';
 
 export default function RegisterPage() {
   const router = useRouter();
   const setAuth = useVyaparStore((state) => state.setAuth);
 
   const [form, setForm] = useState({
-    name: '',
-    businessName: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
-    role: 'owner',
+    name: '', email: '', phone: '', password: '', confirmPassword: '', role: 'owner',
   });
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
+  const [serverStatus, setServerStatus] = useState<ServerStatus>('checking');
+
+  // Pre-warm the Render backend on page load — same as login page
+  useEffect(() => {
+    let cancelled = false;
+    const wakeServer = async () => {
+      setServerStatus('checking');
+      try {
+        const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+        const ctrl = new AbortController();
+        const slowTimer = setTimeout(() => { if (!cancelled) setServerStatus('waking'); }, 3000);
+        const killTimer = setTimeout(() => ctrl.abort(), 60000);
+        const res = await fetch(`${API}/health`, { signal: ctrl.signal });
+        clearTimeout(slowTimer);
+        clearTimeout(killTimer);
+        if (!cancelled && res.ok) setServerStatus('online');
+      } catch {
+        if (!cancelled) setServerStatus('offline');
+      }
+    };
+    wakeServer();
+    return () => { cancelled = true; };
+  }, []);
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -42,9 +61,15 @@ export default function RegisterPage() {
       return;
     }
 
+    // If server is still waking, warn the user to wait
+    if (serverStatus === 'checking' || serverStatus === 'waking') {
+      toast('Server is still waking up — please wait a moment and try again.', { icon: '⏳', duration: 4000 });
+      return;
+    }
+
     setLoading(true);
     setLoadingMsg('Creating your account...');
-    const wakeupTimer = setTimeout(() => setLoadingMsg('Server waking up... please wait'), 4000);
+    const wakeupTimer = setTimeout(() => setLoadingMsg('Registering on server...'), 4000);
 
     try {
       const res = await vyaparApi.register({
@@ -67,6 +92,9 @@ export default function RegisterPage() {
       clearTimeout(wakeupTimer);
       if (err?.response?.status === 400) {
         toast.error(err.response.data?.message || 'Email already registered.');
+      } else if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
+        toast.error('Server took too long. Wait for the green dot and try again.');
+        setServerStatus('waking');
       } else {
         toast.error('Could not reach server. Please try again.');
         console.error('Register error:', err.message);
@@ -94,6 +122,22 @@ export default function RegisterPage() {
           <h2 className="text-xl font-bold tracking-tight text-white mt-4">Create Your Business Account</h2>
           <p className="text-xs text-muted-foreground">Set up VyaparAI for your store in 60 seconds</p>
         </div>
+
+        {/* Server Status */}
+        {(() => {
+          const cfg = {
+            checking: { dot: 'bg-yellow-400', label: 'Connecting to server...', color: 'text-yellow-400' },
+            waking:   { dot: 'bg-orange-400 animate-pulse', label: 'Server waking up — wait for green before registering', color: 'text-orange-400' },
+            online:   { dot: 'bg-emerald-400', label: 'Server online — ready to register', color: 'text-emerald-400' },
+            offline:  { dot: 'bg-red-400', label: 'Server offline', color: 'text-red-400' },
+          }[serverStatus];
+          return (
+            <div className="flex items-center justify-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${cfg.dot}`} />
+              <span className={`text-[10px] font-mono ${cfg.color}`}>{cfg.label}</span>
+            </div>
+          );
+        })()}
 
         <form onSubmit={handleRegister} className="space-y-4">
           {/* Full Name */}

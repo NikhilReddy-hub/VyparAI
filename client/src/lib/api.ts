@@ -20,12 +20,12 @@ api.interceptors.request.use((config) => {
 export const vyaparApi = {
   // Authentication
   login: async (credentials: any) => {
-    const res = await api.post('/auth/login', credentials);
+    const res = await api.post('/auth/login', credentials, { timeout: 55000 });
     return res.data;
   },
   
   register: async (data: any) => {
-    const res = await api.post('/auth/register', data);
+    const res = await api.post('/auth/register', data, { timeout: 55000 });
     return res.data;
   },
 
