@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useVyaparStore } from '@/lib/store';
 import { vyaparApi } from '@/lib/api';
 import { ShieldCheck, UserCheck, KeyRound, Phone, Sparkles, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
-
-type ServerStatus = 'checking' | 'online' | 'offline' | 'waking';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,45 +16,7 @@ export default function RegisterPage() {
     name: '', email: '', phone: '', password: '', confirmPassword: '', role: 'owner',
   });
   const [loading, setLoading] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState('');
-  const [serverStatus, setServerStatus] = useState<ServerStatus>('checking');
-
-  // Pre-warm: ping Render until it wakes up — retry every 15s
-  useEffect(() => {
-    let cancelled = false;
-    let retryTimer: ReturnType<typeof setTimeout>;
-
-    const ping = async () => {
-      if (cancelled) return;
-      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-      // Strip /api suffix to get base URL
-      const BASE = API.replace(/\/api$/, '');
-      try {
-        // Try /api/health first, fall back to root /
-        const ctrl = new AbortController();
-        const killTimer = setTimeout(() => ctrl.abort(), 15000); // 15s per attempt
-        const res = await fetch(`${BASE}/api/health`, { signal: ctrl.signal }).catch(() =>
-          fetch(BASE, { signal: ctrl.signal })
-        );
-        clearTimeout(killTimer);
-        if (!cancelled && res.ok) {
-          setServerStatus('online');
-          return; // success — stop retrying
-        }
-      } catch {
-        // still sleeping — retry
-      }
-      if (!cancelled) {
-        setServerStatus('waking');
-        retryTimer = setTimeout(ping, 8000); // retry in 8s
-      }
-    };
-
-    setServerStatus('checking');
-    setTimeout(() => { if (!cancelled) setServerStatus('waking'); }, 3000);
-    ping();
-    return () => { cancelled = true; clearTimeout(retryTimer); };
-  }, []);
+  const [loadingMsg, setLoadingMsg] = useState('Creating your account...');
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -77,10 +37,11 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    // Show helpful messages during Render cold start wait
-    setLoadingMsg('Connecting to server...');
-    const msgTimer1 = setTimeout(() => setLoadingMsg('Server waking up — this can take ~30s on free tier...'), 5000);
-    const msgTimer2 = setTimeout(() => setLoadingMsg('Almost there — still waiting for server...'), 20000);
+    setLoadingMsg('Creating your account...');
+
+    // Escalate the message if it takes longer (Render cold start)
+    const t1 = setTimeout(() => setLoadingMsg('Connecting to server...'), 4000);
+    const t2 = setTimeout(() => setLoadingMsg('Almost there, hang tight...'), 15000);
 
     try {
       const res = await vyaparApi.register({
@@ -90,7 +51,7 @@ export default function RegisterPage() {
         phone: form.phone,
         role: form.role,
       });
-      clearTimeout(msgTimer1); clearTimeout(msgTimer2);
+      clearTimeout(t1); clearTimeout(t2);
 
       if (res.success) {
         setAuth(res.token, res.user);
@@ -98,20 +59,18 @@ export default function RegisterPage() {
         router.push('/dashboard');
       } else {
         toast.error(res.message || 'Registration failed.');
+        setLoading(false);
       }
     } catch (err: any) {
-      clearTimeout(msgTimer1); clearTimeout(msgTimer2);
+      clearTimeout(t1); clearTimeout(t2);
+      setLoading(false);
       if (err?.response?.status === 400) {
         toast.error(err.response.data?.message || 'Email already registered.');
-      } else if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
-        toast.error('Server is still starting up. Click again to retry.');
+      } else if (err?.code === 'ECONNABORTED') {
+        toast.error('Server took too long — please try again.');
       } else {
-        toast.error('Could not reach server. Please try again.');
-        console.error('Register error:', err.message);
+        toast.error('Could not connect. Please try again.');
       }
-    } finally {
-      setLoading(false);
-      setLoadingMsg('');
     }
   };
 
@@ -130,24 +89,8 @@ export default function RegisterPage() {
         <div className="text-center space-y-2">
           <div className="mx-auto h-11 w-11 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-xl shadow-indigo-500/20">VA</div>
           <h2 className="text-xl font-bold tracking-tight text-white mt-4">Create Your Business Account</h2>
-          <p className="text-xs text-muted-foreground">Set up VyaparAI for your store in 60 seconds</p>
+          <p className="text-xs text-muted-foreground">Set up VyaparAI for your store in seconds</p>
         </div>
-
-        {/* Server Status */}
-        {(() => {
-          const cfg = {
-            checking: { dot: 'bg-yellow-400', label: 'Connecting to server...', color: 'text-yellow-400' },
-            waking:   { dot: 'bg-orange-400 animate-pulse', label: 'Server waking up — wait for green before registering', color: 'text-orange-400' },
-            online:   { dot: 'bg-emerald-400', label: 'Server online — ready to register', color: 'text-emerald-400' },
-            offline:  { dot: 'bg-red-400', label: 'Server offline', color: 'text-red-400' },
-          }[serverStatus];
-          return (
-            <div className="flex items-center justify-center gap-2">
-              <span className={`h-2 w-2 rounded-full ${cfg.dot}`} />
-              <span className={`text-[10px] font-mono ${cfg.color}`}>{cfg.label}</span>
-            </div>
-          );
-        })()}
 
         <form onSubmit={handleRegister} className="space-y-4">
           {/* Full Name */}
@@ -206,12 +149,15 @@ export default function RegisterPage() {
               <div className="relative">
                 <KeyRound className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <input type="password" placeholder="Repeat" value={form.confirmPassword} onChange={set('confirmPassword')} required
-                  className={`w-full pl-10 pr-4 py-2.5 bg-neutral-900 border rounded-xl text-xs text-white placeholder:text-muted-foreground outline-none transition-all ${form.confirmPassword && form.password !== form.confirmPassword ? 'border-red-500/60' : 'border-white/10 focus:border-indigo-500/50'}`} />
+                  className={`w-full pl-10 pr-4 py-2.5 bg-neutral-900 border rounded-xl text-xs text-white placeholder:text-muted-foreground outline-none transition-all ${
+                    form.confirmPassword && form.password !== form.confirmPassword
+                      ? 'border-red-500/60' : 'border-white/10 focus:border-indigo-500/50'
+                  }`} />
               </div>
             </div>
           </div>
           {form.confirmPassword && form.password !== form.confirmPassword && (
-            <p className="text-[10px] text-red-400">Passwords do not match</p>
+            <p className="text-[10px] text-red-400 -mt-2">Passwords do not match</p>
           )}
 
           <button type="submit" disabled={loading}

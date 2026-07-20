@@ -1,14 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useVyaparStore } from '@/lib/store';
 import { vyaparApi } from '@/lib/api';
-import { ShieldCheck, UserCheck, KeyRound, Sparkles, Wifi, WifiOff, Building2, Phone, User } from 'lucide-react';
+import { ShieldCheck, UserCheck, KeyRound, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
-
-type ServerStatus = 'checking' | 'online' | 'offline' | 'waking';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,41 +15,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState('');
-  const [serverStatus, setServerStatus] = useState<ServerStatus>('checking');
-
-  // Pre-warm: ping Render until it wakes up — retry every 8s
-  useEffect(() => {
-    let cancelled = false;
-    let retryTimer: ReturnType<typeof setTimeout>;
-
-    const ping = async () => {
-      if (cancelled) return;
-      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-      const BASE = API.replace(/\/api$/, '');
-      try {
-        const ctrl = new AbortController();
-        const killTimer = setTimeout(() => ctrl.abort(), 15000);
-        const res = await fetch(`${BASE}/api/health`, { signal: ctrl.signal }).catch(() =>
-          fetch(BASE, { signal: ctrl.signal })
-        );
-        clearTimeout(killTimer);
-        if (!cancelled && res.ok) {
-          setServerStatus('online');
-          return;
-        }
-      } catch { /* still sleeping */ }
-      if (!cancelled) {
-        setServerStatus('waking');
-        retryTimer = setTimeout(ping, 8000);
-      }
-    };
-
-    setServerStatus('checking');
-    setTimeout(() => { if (!cancelled) setServerStatus('waking'); }, 3000);
-    ping();
-    return () => { cancelled = true; clearTimeout(retryTimer); };
-  }, []);
+  const [loadingMsg, setLoadingMsg] = useState('Signing in...');
 
   const prefill = (role: 'owner' | 'manager' | 'staff') => {
     if (role === 'owner') { setEmail('owner@vyapar.ai'); setPassword('password123'); }
@@ -63,57 +27,50 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) { toast.error('Please enter your credentials.'); return; }
-    setLoading(true);
-    setLoadingMsg('Authenticating...');
 
-    const wakeupTimer = setTimeout(() => {
-      setLoadingMsg('Server waking up — please wait (~30s)...');
-    }, 4000);
+    setLoading(true);
+    setLoadingMsg('Signing in...');
+
+    const t1 = setTimeout(() => setLoadingMsg('Connecting to server...'), 4000);
+    const t2 = setTimeout(() => setLoadingMsg('Almost there, hang tight...'), 15000);
 
     try {
-      // Use long timeout for login to allow Render cold start
       const res = await vyaparApi.login({ email, password });
-      clearTimeout(wakeupTimer);
+      clearTimeout(t1); clearTimeout(t2);
+
       if (res.success) {
         setAuth(res.token, res.user);
-        setServerStatus('online');
         toast.success(`Welcome back, ${res.user.name}!`);
         router.push('/dashboard');
       } else {
         toast.error(res.message || 'Invalid credentials.');
-        setLoading(false); setLoadingMsg('');
+        setLoading(false);
       }
     } catch (err: any) {
-      clearTimeout(wakeupTimer);
-      // Only fall back to mock if it was a network/timeout error, not a 401
+      clearTimeout(t1); clearTimeout(t2);
+      setLoading(false);
+
+      // 401 = wrong password, not a network error
       if (err?.response?.status === 401) {
         toast.error('Invalid email or password.');
-        setLoading(false); setLoadingMsg('');
         return;
       }
-      // Network error — enter preview mode
-      console.warn('Backend unreachable, entering preview mode:', err.message);
-      const roleFromEmail = email.includes('manager') ? 'manager' : email.includes('jitul') || email.includes('staff') ? 'staff' : 'owner';
+
+      // Network/timeout — fall back to preview mode
+      const roleFromEmail = email.includes('manager') ? 'manager'
+        : email.includes('jitul') || email.includes('staff') ? 'staff' : 'owner';
+
       const dummyUsers: Record<string, any> = {
-        owner: { id: 'dummy-owner', name: 'Nayan Jyoti Sharma', email, role: 'owner', permissions: { canManageInventory: true, canManageSales: true, canViewAnalytics: true, canManageStaff: true, canManageCustomers: true, canViewFinancials: true, canExportData: true } },
-        manager: { id: 'dummy-manager', name: 'Pranab Das', email, role: 'manager', permissions: { canManageInventory: true, canManageSales: true, canViewAnalytics: true, canManageStaff: false, canManageCustomers: true, canViewFinancials: false, canExportData: true } },
-        staff: { id: 'dummy-staff', name: 'Jitul Gogoi', email, role: 'staff', permissions: { canManageInventory: true, canManageSales: true, canViewAnalytics: false, canManageStaff: false, canManageCustomers: true, canViewFinancials: false, canExportData: false } },
+        owner:   { id: 'dummy-owner',   name: 'Nayan Jyoti Sharma', email, role: 'owner',   permissions: { canManageInventory: true,  canManageSales: true,  canViewAnalytics: true,  canManageStaff: true,  canManageCustomers: true,  canViewFinancials: true,  canExportData: true  } },
+        manager: { id: 'dummy-manager', name: 'Pranab Das',          email, role: 'manager', permissions: { canManageInventory: true,  canManageSales: true,  canViewAnalytics: true,  canManageStaff: false, canManageCustomers: true,  canViewFinancials: false, canExportData: true  } },
+        staff:   { id: 'dummy-staff',   name: 'Jitul Gogoi',         email, role: 'staff',   permissions: { canManageInventory: true,  canManageSales: true,  canViewAnalytics: false, canManageStaff: false, canManageCustomers: true,  canViewFinancials: false, canExportData: false } },
       };
+
       setAuth('preview-token', dummyUsers[roleFromEmail]);
-      toast('Preview Mode — backend offline', { icon: '⚠️' });
+      toast('Preview Mode — server offline', { icon: '⚠️' });
       router.push('/dashboard');
-    } finally {
-      setLoading(false); setLoadingMsg('');
     }
   };
-
-  const statusConfig = {
-    checking: { color: 'text-yellow-400', dot: 'bg-yellow-400', label: 'Connecting to server...' },
-    waking: { color: 'text-orange-400', dot: 'bg-orange-400 animate-pulse', label: 'Server waking up (~30s)...' },
-    online: { color: 'text-emerald-400', dot: 'bg-emerald-400', label: 'Server online' },
-    offline: { color: 'text-red-400', dot: 'bg-red-400', label: 'Server offline — Preview Mode' },
-  };
-  const status = statusConfig[serverStatus];
 
   return (
     <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-neutral-950 px-4">
@@ -126,12 +83,6 @@ export default function LoginPage() {
           <div className="mx-auto h-11 w-11 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-xl shadow-indigo-500/20">VA</div>
           <h2 className="text-xl font-bold tracking-tight text-white mt-4">VyaparAI Operating System</h2>
           <p className="text-xs text-muted-foreground">Manage inventory, intelligence & cash flow</p>
-        </div>
-
-        {/* Server Status */}
-        <div className="flex items-center justify-center gap-2">
-          <span className={`h-2 w-2 rounded-full ${status.dot}`} />
-          <span className={`text-[10px] font-mono ${status.color}`}>{status.label}</span>
         </div>
 
         {/* Quick Profiles */}
@@ -185,7 +136,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Register link */}
         <p className="text-center text-[10px] text-muted-foreground">
           New business?{' '}
           <Link href="/register" className="text-indigo-400 hover:text-indigo-300 font-semibold transition-colors">
