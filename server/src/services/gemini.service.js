@@ -104,7 +104,7 @@ async function runBusinessBrain(query, businessContext) {
     ? `Upcoming festivals: ${upcomingFestivals.map(f => f.name).join(', ')}`
     : 'No major festivals upcoming.';
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   const prompt = `You are VyaparAI Business Operating Agent. Write a clean narrative summary and action recommendations based on this data.
 
 OWNER QUERY: "${query}"
@@ -174,7 +174,7 @@ Return JSON:
 
 // Generate daily business health score
 async function generateBusinessHealth(metrics) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   const upcomingFestivals = getUpcomingFestivals(14);
 
   const prompt = `You are VyaparAI Health Analyzer. Calculate a comprehensive business health score.
@@ -261,7 +261,7 @@ async function predictStockDemand(product, salesHistory = [], upcomingDays = 14)
   const estRevenue = recommendedQty * product.sellingPrice;
   const estProfit = estRevenue - estCost;
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   const prompt = `You are VyaparAI Stock Forecaster. Generate a brief business explanation for this mathematical forecast.
   
 PRODUCT: ${product.name}
@@ -334,7 +334,7 @@ async function predictCustomerChurn(customer, purchaseHistory = []) {
   const avgOrderValue = customer.totalOrders > 0 ? (customer.totalPurchased / customer.totalOrders) : 0;
   const targetOffer = segment === 'at-risk' ? "10% off combo purchase to re-engage" : segment === 'lost' ? "Clear balance for custom bonus points" : "Regular customer bonus";
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   const prompt = `You are VyaparAI CRM Analyst. Generate a brief customer relationship summary based on this logic:
   
 CUSTOMER: ${customer.name}
@@ -388,7 +388,7 @@ async function getNegotiationAdvice(product, supplier, currentPrice) {
   const maxAcceptablePrice = Number((product.sellingPrice * 0.85).toFixed(2));
   const potentialSaving = Math.max(0, Math.round((currentPrice - suggestedNegotiationPrice) * 100));
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   const prompt = `You are VyaparAI Negotiation Assistant. Generate a negotiation script for this shopkeeper:
   
 PRODUCT: ${product.name}
@@ -442,7 +442,7 @@ async function detectTheft(product, expectedStock, actualStock, recentTransactio
   if (anomalyScore > 15 && totalValue > 1000) theftRisk = 'high';
   else if (anomalyScore > 5 || totalValue > 500) theftRisk = 'medium';
 
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   const prompt = `You are VyaparAI Loss Prevention Agent. Write a loss prevention warning report for this discrepancy:
   
 PRODUCT: ${product.name}
@@ -483,7 +483,7 @@ Return JSON:
 
 // AI Purchase Planner
 async function generatePurchasePlan(budget, inventory, salesData) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
   const festivals = getUpcomingFestivals(30);
 
   const prompt = `Create an optimal purchase plan for an Indian retail business.
@@ -531,7 +531,7 @@ Return JSON:
 
 // AI Growth Coach
 async function generateGrowthInsights(analyticsData) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   const prompt = `You are an AI Growth Coach for an Indian retail business. Analyze performance and give specific, actionable growth recommendations.
 
@@ -568,7 +568,7 @@ Return JSON:
 
 // AI Chat (general queries)
 async function chat(message, businessContext) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
   const prompt = `You are VyaparAI Assistant for ${businessContext.businessName || 'Sharma General Stores'} in Assam, India.
 You help business owners with inventory, sales, customers, and operations.

@@ -59,6 +59,8 @@ productSchema.virtual('stockValue').get(function () {
   return this.currentStock * this.purchasePrice;
 });
 
-productSchema.index({ name: 'text', sku: 'text', barcode: 'text' });
+productSchema.index({ name: 1 });
+productSchema.index({ sku: 1 });
+productSchema.index({ barcode: 1 });
 
 module.exports = mongoose.model('Product', productSchema);

@@ -6,7 +6,10 @@ exports.getAll = async (req, res) => {
   try {
     const { search, category, supplier, lowStock, deadStock, page = 1, limit = 50 } = req.query;
     const query = { isActive: true };
-    if (search) query.$text = { $search: search };
+    if (search) {
+      const searchRegex = { $regex: search, $options: 'i' };
+      query.$or = [{ name: searchRegex }, { sku: searchRegex }, { barcode: searchRegex }];
+    }
     if (category) query.category = category;
     if (supplier) query.supplier = supplier;
     if (lowStock === 'true') query.$expr = { $lte: ['$currentStock', '$reorderLevel'] };
