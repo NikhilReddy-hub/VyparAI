@@ -1,6 +1,7 @@
 const Invoice = require('../models/Invoice');
 const Product = require('../models/Product');
 const Customer = require('../models/Customer');
+const User = require('../models/User');
 const Activity = require('../models/Activity');
 
 const generateInvoiceNumber = async () => {

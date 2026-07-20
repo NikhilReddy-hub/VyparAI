@@ -1,4 +1,5 @@
 const Staff = require('../models/Staff');
+const User = require('../models/User');
 const Activity = require('../models/Activity');
 
 exports.getAll = async (req, res) => {

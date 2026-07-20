@@ -1,4 +1,6 @@
 const Product = require('../models/Product');
+const Category = require('../models/Category');
+const Supplier = require('../models/Supplier');
 const Activity = require('../models/Activity');
 const gemini = require('../services/gemini.service');
 

@@ -34,6 +34,17 @@ const io = socketIo(server, {
 // Connect Database
 connectDB();
 
+// Pre-register Mongoose Schemas to prevent population race conditions
+require('./models/User');
+require('./models/Customer');
+require('./models/Supplier');
+require('./models/Category');
+require('./models/Product');
+require('./models/Staff');
+require('./models/Invoice');
+require('./models/Activity');
+require('./models/BusinessHealth');
+
 // Global Middlewares
 app.use(helmet({
   crossOriginResourcePolicy: false
