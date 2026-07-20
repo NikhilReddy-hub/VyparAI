@@ -52,9 +52,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
   }, [isOffline, emergencyMode, syncQueue.length]);
 
-  // Auth Guard redirects
+  // Auth Guard — public routes don't require a token
+  const publicRoutes = ['/login', '/register'];
   useEffect(() => {
-    if (!token && pathname !== '/login') {
+    if (!token && !publicRoutes.includes(pathname)) {
       router.push('/login');
     }
   }, [token, pathname]);
@@ -78,7 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const isLoginPage = pathname === '/login';
+  const isPublicPage = pathname === '/login' || pathname === '/register';
 
   return (
     <html lang="en" className="dark">
@@ -97,7 +98,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               }
             }}
           />
-          {isLoginPage ? (
+          {isPublicPage ? (
             <main>{children}</main>
           ) : (
             <div className="flex min-h-screen">
